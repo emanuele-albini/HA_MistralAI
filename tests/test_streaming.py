@@ -44,6 +44,7 @@ def _load_streaming_module() -> ModuleType:
 
 
 _STREAMING = _load_streaming_module()
+has_speakable_content = _STREAMING.has_speakable_content
 pop_complete_sentences = _STREAMING.pop_complete_sentences
 iter_sse_audio_chunks = _STREAMING.iter_sse_audio_chunks
 
@@ -145,6 +146,72 @@ class SentenceSegmenterTests(unittest.TestCase):
         )
         self.assertEqual(sentences, ["First long sentence done."])
         self.assertEqual(rest, "Continuing")
+
+    def test_emoji_only_long_candidate_is_rejected(self) -> None:
+        """An emoji-only fragment ≥ MIN_CHARS still passes the length gate
+        but must be rejected by the speakable-content check."""
+        sentences, rest = pop_complete_sentences(
+            "🌿✨💫🌹🌷🌸💐🌼🌻🌺.", MIN_CHARS
+        )
+        self.assertEqual(sentences, [])
+        self.assertEqual(rest, "🌿✨💫🌹🌷🌸💐🌼🌻🌺.")
+
+    def test_punctuation_only_candidate_is_rejected(self) -> None:
+        sentences, rest = pop_complete_sentences("...???!!!....", MIN_CHARS)
+        self.assertEqual(sentences, [])
+
+    def test_emoji_decoration_at_end_of_long_sentence_kept(self) -> None:
+        """Emojis sprinkled in a real sentence are fine — the sentence has
+        speakable content overall."""
+        sentences, rest = pop_complete_sentences(
+            "Listen closely on a still night you might hear it too 🌿✨.",
+            MIN_CHARS,
+        )
+        self.assertEqual(
+            sentences,
+            ["Listen closely on a still night you might hear it too 🌿✨."],
+        )
+        self.assertEqual(rest, "")
+
+
+class HasSpeakableContentTests(unittest.TestCase):
+    """``has_speakable_content`` checks for at least one letter or digit."""
+
+    def test_letters_only(self) -> None:
+        self.assertTrue(has_speakable_content("hello"))
+
+    def test_digits_only(self) -> None:
+        self.assertTrue(has_speakable_content("12345"))
+
+    def test_mixed_letters_and_punctuation(self) -> None:
+        self.assertTrue(has_speakable_content("Hello, world!"))
+
+    def test_unicode_letters(self) -> None:
+        # "café" has 'c', 'a', 'f', 'é' — all letters
+        self.assertTrue(has_speakable_content("café"))
+
+    def test_japanese_letters(self) -> None:
+        self.assertTrue(has_speakable_content("こんにちは"))
+
+    def test_empty_string(self) -> None:
+        self.assertFalse(has_speakable_content(""))
+
+    def test_whitespace_only(self) -> None:
+        self.assertFalse(has_speakable_content("   \n\t  "))
+
+    def test_punctuation_only(self) -> None:
+        self.assertFalse(has_speakable_content("...!?,;:"))
+
+    def test_emoji_only(self) -> None:
+        self.assertFalse(has_speakable_content("🌿✨"))
+        self.assertFalse(has_speakable_content("🌅☕"))
+        self.assertFalse(has_speakable_content("😊"))
+
+    def test_emoji_with_punctuation(self) -> None:
+        self.assertFalse(has_speakable_content("🌿✨!?."))
+
+    def test_single_letter_makes_speakable(self) -> None:
+        self.assertTrue(has_speakable_content("a 🌿✨"))
 
 
 # ---------------------------------------------------------------------------

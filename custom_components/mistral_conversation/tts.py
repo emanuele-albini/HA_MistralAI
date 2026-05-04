@@ -40,7 +40,11 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from ._streaming import iter_sse_audio_chunks, pop_complete_sentences
+from ._streaming import (
+    has_speakable_content,
+    iter_sse_audio_chunks,
+    pop_complete_sentences,
+)
 from .const import (
     CONF_TTS_MODE,
     CONF_TTS_VOICE,
@@ -316,8 +320,14 @@ class MistralTTSEntity(TextToSpeechEntity):
                         )
                         await outer_q.put(inner)
                         next_idx += 1
+                # Flush any trailing text without a terminator. Skip if it
+                # has no speakable content (emoji- or punctuation-only) —
+                # Mistral would reject it with HTTP 400. The segmenter
+                # applies the same check via has_speakable_content() but
+                # skips the min-length gate that the loop above uses, since
+                # this is the last chance to emit whatever's left.
                 trailing = token_buffer.strip()
-                if trailing:
+                if trailing and has_speakable_content(trailing):
                     inner = await fetch_sentence(
                         next_idx, trailing, drop_header=next_idx > 0
                     )
@@ -337,9 +347,15 @@ class MistralTTSEntity(TextToSpeechEntity):
                     if item is end_marker:
                         break
                     if isinstance(item, BaseException):
-                        raise HomeAssistantError(
-                            f"Mistral TTS streaming failed: {item}"
-                        ) from item
+                        # Skip this sentence rather than aborting the whole
+                        # stream — a single sentence's failure (e.g. Mistral
+                        # 4xx, network blip) shouldn't truncate the rest of
+                        # the response. The worker has already logged the
+                        # specifics at WARNING level.
+                        _LOGGER.warning(
+                            "Skipping sentence due to error: %s", item
+                        )
+                        break
                     yield item
         finally:
             # Cleanup. The CancelledError raised by ``await producer_task``

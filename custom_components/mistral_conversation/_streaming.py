@@ -26,16 +26,31 @@ _ABBREV: frozenset[str] = frozenset(
 )
 
 
+def has_speakable_content(text: str) -> bool:
+    """Return True if *text* contains at least one letter or digit.
+
+    Mistral's /v1/audio/speech rejects inputs that have nothing to vocalise
+    (emoji-only, punctuation-only, whitespace-only) with HTTP 400 and the
+    message ``Speech input is empty after sanitization``. We mirror that
+    policy here so we never even attempt those sentences.
+    """
+    return any(c.isalpha() or c.isdigit() for c in text)
+
+
 def pop_complete_sentences(
     buf: str, min_sentence_chars: int
 ) -> tuple[list[str], str]:
     """Extract complete sentences from *buf*; return ``(sentences, remainder)``.
 
-    A sentence is ``<text><.!?>+<whitespace-or-EOB>`` plus two safeguards:
+    A sentence is ``<text><.!?>+<whitespace-or-EOB>`` plus three safeguards:
 
     1. The candidate must be at least ``min_sentence_chars`` after stripping
        (avoids firing TTS on stray ``OK.`` fragments).
-    2. The token immediately preceding the terminator must not be a known
+    2. The candidate must contain at least one letter or digit — see
+       :func:`has_speakable_content`. Emoji- or punctuation-only fragments
+       slip past the length check (e.g. "🌿✨💫🌹🌷🌸💐🌼🌻🌺." is 12
+       characters) but Mistral rejects them with HTTP 400.
+    3. The token immediately preceding the terminator must not be a known
        abbreviation. False negatives just mean we keep buffering longer.
 
     Sentences are stripped. The remainder retains content but with leading
@@ -50,6 +65,9 @@ def pop_complete_sentences(
         end = match.end()
         candidate = buf[:end].strip()
         if len(candidate) < min_sentence_chars:
+            pos = end
+            continue
+        if not has_speakable_content(candidate):
             pos = end
             continue
         last_word_match = _LAST_WORD_BEFORE_TERMINATOR.search(candidate)
