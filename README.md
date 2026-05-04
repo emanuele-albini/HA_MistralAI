@@ -57,7 +57,7 @@ This integration makes **Mistral AI** available as a fully-featured conversation
 | Speech recognition (STT) | ✅ | Voxtral Mini via `/v1/audio/transcriptions` |
 | Text-to-speech (TTS) | ✅ | Mistral TTS via `/v1/audio/speech` with multiple voices |
 | Streaming TTS | ✅ | Low-latency SSE WAV with sentence-level pipelining (≥ v0.4.0) |
-| Conversation memory | ✅ | Context kept per session (20 turns) |
+| Conversation memory | ✅ | Context kept per session until 5 min idle (HA timeout). |
 | Jinja2 system prompt | ✅ | Templates with `{{ now() }}`, `{{ ha_name }}` etc. |
 | Multilingual | ✅ | Responds in the user's language |
 | Continue conversation | ✅ | Keeps microphone open after questions (Experimental) |
@@ -140,7 +140,6 @@ Click the integration → **Configure** to change settings.
 | **Continue conversation** | Off | Keep listening after questions (Experimental) |
 | **STT language** | Auto-detect | Language for Voxtral transcription |
 | **TTS mode** | `Streaming` | `Streaming` (SSE WAV with sentence-level pipelining) or `Batch` (single MP3 request) |
-
 ### Available models
 
 | Model | Speed | Cost | Best for |
