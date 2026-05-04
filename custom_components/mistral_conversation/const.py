@@ -128,9 +128,9 @@ TTS_WAV_HEADER_SIZE = 44
 # give natural pauses at sentence boundaries. Without it, the per-sentence
 # requests concatenate with no audible gap because each Mistral call ends
 # right at the last phoneme. Mistral's streaming WAV is 24 kHz × 16-bit ×
-# mono = 48000 bytes / second, so 12000 bytes ≈ 250 ms of silence — within
+# mono = 48000 bytes / second, so 14400 bytes ≈ 300 ms of silence — within
 # the natural 200–400 ms range of a human inter-sentence pause.
-TTS_INTER_SENTENCE_SILENCE_BYTES = 12000
+TTS_INTER_SENTENCE_SILENCE_BYTES = 14_400
 
 # ---------------------------------------------------------------------------
 # API
