@@ -317,9 +317,6 @@ A: It requires a satellite that supports the `assist_satellite` integration and 
 **Q: Are my conversations stored?**
 A: Mistral AI processes requests via their servers. See their [privacy policy](https://mistral.ai/privacy-policy) for details.
 
-**Q: Long responses (e.g. *"tell me a story with 10 sentences"*) cut off after about a minute on Voice PE.**
-A: This is a known Home Assistant Voice PE FLAC playback regression in HA 2025.12+ ([community thread](https://community.home-assistant.io/t/voice-pe-flac-playback-timeout-ha-2025-12-regression/967784)) and is downstream of this integration. From the integration's side, the streaming TTS produces the full audio stream cleanly — you can confirm via the pipeline debug trace where every `TTS sentence N START` has a matching `DONE` log line — but Voice PE stops playback once a built-in duration limit kicks in. Workarounds: keep voice responses short (use the system prompt to constrain length), or use a different satellite for long responses.
-
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
