@@ -223,6 +223,11 @@ class MistralTTSEntity(TextToSpeechEntity):
         For CONF_TTS_MODE == 'batch' we defer to the inherited default which
         collects the full message and calls ``async_get_tts_audio``.
         """
+        # Diagnostic: when is HA actually invoking us? Compare this timestamp
+        # against the pipeline's "tts_start_streaming: true" event time to see
+        # where time is being lost in the LLM-to-TTS pipeline.
+        _LOGGER.debug("async_stream_tts_audio called at monotonic=%.3fs", time.monotonic())
+
         mode = self._entry.options.get(CONF_TTS_MODE, DEFAULT_TTS_MODE)
         if mode == TTS_MODE_BATCH:
             return await super().async_stream_tts_audio(request)
