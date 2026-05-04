@@ -118,6 +118,14 @@ TTS_MIN_SENTENCE_CHARS = 12
 # empirically against api.mistral.ai with response_format=wav, stream=true.
 TTS_WAV_HEADER_SIZE = 44
 
+# Silence (zero PCM samples) inserted between sentences in streaming mode to
+# give natural pauses at sentence boundaries. Without it, the per-sentence
+# requests concatenate with no audible gap because each Mistral call ends
+# right at the last phoneme. Mistral's streaming WAV is 24 kHz × 16-bit ×
+# mono = 48000 bytes / second, so 12000 bytes ≈ 250 ms of silence — within
+# the natural 200–400 ms range of a human inter-sentence pause.
+TTS_INTER_SENTENCE_SILENCE_BYTES = 12000
+
 # ---------------------------------------------------------------------------
 # API
 # ---------------------------------------------------------------------------

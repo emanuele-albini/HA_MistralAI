@@ -78,6 +78,20 @@ class TtsConfigurationTests(unittest.TestCase):
         envelope and this fires, the streaming path needs revisiting."""
         self.assertEqual(C.TTS_WAV_HEADER_SIZE, 44)
 
+    def test_inter_sentence_silence_in_natural_pause_range(self) -> None:
+        """Silence between sentences should be 100–500 ms — outside that
+        window the speech sounds either rushed or disjointed. Mistral's
+        streaming WAV is 24 kHz × 16-bit × mono, so 1 s = 48000 bytes."""
+        bytes_per_sec = 24000 * 2  # 24 kHz, int16 mono
+        ms = (C.TTS_INTER_SENTENCE_SILENCE_BYTES * 1000) // bytes_per_sec
+        self.assertGreaterEqual(ms, 100)
+        self.assertLessEqual(ms, 500)
+
+    def test_inter_sentence_silence_is_sample_aligned(self) -> None:
+        """Byte count must be even so the zeros pack cleanly into int16
+        samples (otherwise we'd misalign subsequent audio)."""
+        self.assertEqual(C.TTS_INTER_SENTENCE_SILENCE_BYTES % 2, 0)
+
 
 class AgentCapableModelsTests(unittest.TestCase):
     def test_includes_medium_and_large(self) -> None:

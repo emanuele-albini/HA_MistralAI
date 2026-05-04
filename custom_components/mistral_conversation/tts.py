@@ -52,6 +52,7 @@ from .const import (
     DEFAULT_TTS_VOICE,
     DOMAIN,
     MISTRAL_API_BASE,
+    TTS_INTER_SENTENCE_SILENCE_BYTES,
     TTS_MAX_INFLIGHT_SENTENCES,
     TTS_MIN_SENTENCE_CHARS,
     TTS_MODE_BATCH,
@@ -61,6 +62,11 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Pre-computed once at import. ``bytes(N)`` materialises N zero bytes — valid
+# PCM silence at any sample rate / channel count. Yielded between sentences
+# in the pipelined streaming engine to produce natural inter-sentence pauses.
+_INTER_SENTENCE_SILENCE: bytes = bytes(TTS_INTER_SENTENCE_SILENCE_BYTES)
 
 
 # ---------------------------------------------------------------------------
@@ -338,10 +344,20 @@ class MistralTTSEntity(TextToSpeechEntity):
         producer_task = asyncio.create_task(producer())
 
         try:
+            sentence_idx = 0
             while True:
                 inner = await outer_q.get()
                 if inner is None:
                     return
+                # Inject a brief silence before every sentence after the
+                # first to give an audible pause at sentence boundaries.
+                # Without this, the back-to-back per-sentence Mistral calls
+                # concatenate with no gap — each call's audio ends at the
+                # last phoneme. Silence is plain zero PCM appended to the
+                # data subchunk (size = 0xFFFFFFFF, no length to update).
+                if sentence_idx > 0:
+                    yield _INTER_SENTENCE_SILENCE
+                sentence_idx += 1
                 while True:
                     item = await inner.get()
                     if item is end_marker:
