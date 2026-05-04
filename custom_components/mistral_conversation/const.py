@@ -109,11 +109,6 @@ TTS_VOICES = [
 # a burst.
 TTS_MAX_INFLIGHT_SENTENCES = 5
 
-# Per-sentence audio chunk queue capacity. Provides backpressure: if Voice
-# PE is draining slowly, the producer task blocks here instead of buffering
-# MBs.
-TTS_AUDIO_QUEUE_MAXSIZE = 32
-
 # Don't fire TTS for sentences shorter than this — avoids spamming the API
 # on stray "OK." or single-word fragments and waiting on TTFB for nothing.
 TTS_MIN_SENTENCE_CHARS = 12

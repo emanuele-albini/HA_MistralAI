@@ -48,7 +48,6 @@ from .const import (
     DEFAULT_TTS_VOICE,
     DOMAIN,
     MISTRAL_API_BASE,
-    TTS_AUDIO_QUEUE_MAXSIZE,
     TTS_MAX_INFLIGHT_SENTENCES,
     TTS_MIN_SENTENCE_CHARS,
     TTS_MODE_BATCH,
@@ -269,7 +268,14 @@ class MistralTTSEntity(TextToSpeechEntity):
         end_marker = object()
 
         async def fetch_sentence(idx: int, text: str, drop_header: bool) -> asyncio.Queue:
-            inner: asyncio.Queue = asyncio.Queue(maxsize=TTS_AUDIO_QUEUE_MAXSIZE)
+            # Unbounded queue: avoids a cancellation-time deadlock where a
+            # worker stuck on ``await inner.put(...)`` (queue at maxsize) can't
+            # reach its finally block, leaving the consumer's ``gather`` to
+            # wait forever. Memory ceiling is per-sentence audio size ×
+            # in-flight count (a few MB worst-case), which is fine on any HA
+            # host. Backpressure on the wire still applies because Mistral
+            # streams chunks at their generation rate.
+            inner: asyncio.Queue = asyncio.Queue()
 
             async def worker() -> None:
                 try:

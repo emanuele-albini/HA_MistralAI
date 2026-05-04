@@ -70,9 +70,6 @@ class TtsConfigurationTests(unittest.TestCase):
     def test_max_inflight_positive(self) -> None:
         self.assertGreater(C.TTS_MAX_INFLIGHT_SENTENCES, 0)
 
-    def test_audio_queue_maxsize_positive(self) -> None:
-        self.assertGreater(C.TTS_AUDIO_QUEUE_MAXSIZE, 0)
-
     def test_min_sentence_chars_positive(self) -> None:
         self.assertGreater(C.TTS_MIN_SENTENCE_CHARS, 0)
 
