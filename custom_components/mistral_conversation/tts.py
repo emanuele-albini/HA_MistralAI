@@ -257,7 +257,7 @@ class MistralTTSEntity(TextToSpeechEntity):
         * Each fetcher acquires a semaphore (bounding outbound concurrency),
           POSTs to Mistral, parses SSE, decodes base64 audio, optionally
           strips the WAV header for sentences after the first, and pushes
-          chunks into its inner queue (bounded for backpressure).
+          chunks into its (unbounded) inner queue.
         * Consumer (this method) drains inner queues in strict order. The
           output is a single contiguous WAV stream: header from sentence 0,
           PCM samples concatenated from sentences 0..N.
@@ -342,14 +342,19 @@ class MistralTTSEntity(TextToSpeechEntity):
                         ) from item
                     yield item
         finally:
-            # Only swallow Exception during cleanup; let CancelledError propagate
-            # so HA knows the data_gen actually stopped on cancellation.
+            # Cleanup. The CancelledError raised by ``await producer_task``
+            # below originates from *our* cancel of the producer, not from
+            # this generator being cancelled — swallowing it does not lose
+            # any caller-visible signal because Python's try/finally rule is
+            # that if the finally block doesn't raise, the original exception
+            # (be it CancelledError from a real cancel or GeneratorExit from
+            # aclose) keeps propagating.
             if not producer_task.done():
                 producer_task.cancel()
             try:
                 await producer_task
             except asyncio.CancelledError:
-                raise
+                pass
             except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.debug("TTS producer ended with error: %s", err)
             for task in fetch_tasks:
